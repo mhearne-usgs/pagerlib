@@ -7,5 +7,5 @@ setup(name='pagerlib',
       author_email='mhearne@usgs.gov',
       url='',
       packages=['pagerutil','pagerio'],
-      install_requires=['numpy', 'matplotlib', 'mpl_toolkits.basemap', 'scipy'],
+      install_requires=['numpy', 'matplotlib', 'scipy'],
 )
