@@ -6,6 +6,6 @@ setup(name='pagerlib',
       author='Mike Hearne',
       author_email='mhearne@usgs.gov',
       url='',
-      packages=['pagerutil','pagerio'],
+      packages=['pagerutil','pagerio','pagermap'],
       install_requires=['numpy', 'matplotlib', 'scipy'],
 )
