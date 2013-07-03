@@ -14,6 +14,86 @@ def rectint(r1,r2):
     separate =  r1[1] < r2[0] or r1[0] > r2[1] or r1[3] < r2[2] or r1[2] > r2[3]
     return not separate
 
+def writeRecord(fidout,txmin,txmax,tymin,tymax,ishapes):
+    lint32 = '<L'
+    ldouble = '<D'
+    fidout.write(struct.pack(ldouble,txmin))
+    fidout.write(struct.pack(ldouble,txmax,'double'))
+    fidout.write(struct.pack(ldouble,tymin,'double'))
+    fidout.write(struct.pack(ldouble,tymax,'double'))
+    fidout.write(struct.pack(lint32,len(ishapes),'int32'))
+    fidout.write(struct.pack('<%iL' % len(ishapes),ishapes))
+
+def writeHeader(f,nrows,ncols,xmin,xmax,ymin,ymax,xdim,ydim):
+    lint32 = '<L'
+    ldouble = '<D'
+    f.write(struct.pack(lint32,nrows))#4
+    f.write(struct.pack(lint32,ncols))#8
+    f.write(struct.pack(ldouble,xmin))#16
+    f.write(struct.pack(ldouble,xmax))#24
+    f.write(struct.pack(ldouble,ymin))#32
+    f.write(struct.pack(ldouble,ymax))#40
+    f.write(struct.pack(ldouble,xdim))#48
+    f.write(struct.pack(ldouble,ydim))#56
+    
+
+def getDimensions(mean_area,xmin,xmax,ymin,ymax):
+    MAXNTILES = 1000
+    ntiles = 1001
+    niter = 0
+    while True:
+        xdim = math.sqrt(mean_area)
+        ydim = xdim
+        ncols = math.floor((xmax-xmin)/xdim)
+        nrows = math.floor((ymax-ymin)/ydim)
+        ntiles = ncols*nrows
+        if ntiles > MAXNTILES:
+            mean_area = mean_area*2
+        else:
+            break
+        niter =+ 1
+    xdim = (xmax-xmin)/ncols
+    ydim = (ymax-ymin)/nrows
+    return (xdim,ydim,ncols,nrows)
+
+def getNumShapes(shxfile):
+    nbytes = os.stat(shxfile).st_size
+    nshapes = (nbytes - 100)/8
+    return nshapes
+
+def getBoundsAndType(f):
+    #get the bounding box of the whole shapefile
+    f.seek(f,36,0)
+    xmin = struct.unpack(ldouble,f.read(f,8))
+    xmax = struct.unpack(ldouble,f.read(f,8))
+    ymin = struct.unpack(ldouble,f.read(f,8))
+    ymax = struct.unpack(ldouble,f.read(f,8))
+    f.seek(fid,32,0)
+    shptype = struct.unpack(lint32,f.read(f,4))
+    return (shptype,xmin,xmax,ymin,ymax)
+
+def getBoundingBoxes(fx,nshapes,shptype):
+    fx.seek(100,0)
+    b4double = '>4d'
+    bboxes = np.zeros(nshapes,4) #rows of [xmin ymin xmax ymax]
+    for i in range(0,nshapes):
+        offset = struct.unpack(lint32,fx.read(4))
+        reclen = struct.unpack(lint32,fx.read(4))
+        fx.seek((offset*2)+8,0)
+        tshptype = struct.unpack(lint32,fx.read(4))
+        if tshptype != shptype:
+            raise Exception,'Mixed shape types are not supported.'
+
+        box = struct.unpack(b4double,fx.read(4*8))
+        bboxes[i,:] = box
+    end
+    #get the mean area of the bounding boxes
+    areas = (bboxes[:,3] - bboxes[:,1]) * (bboxes[:,4] - bboxes[:,2])
+    mean_area = np.mean(areas)
+    return (bboxes,mean_area)
+
+
+
 class PagerShapeFile(object):
     """
     Read information from an ESRI Shapefile.
@@ -33,7 +113,9 @@ class PagerShapeFile(object):
         @param shapefile: Name of shape file (.shp).  Must be accompanied by .shx, .dbf files.
         """
         try:
-            self.reader = shapefile.Reader(shapefilename)
+            #force shapefilename to be ascii string - reader bombs on unicode
+            shapefilename = str(shapefilename)
+            self.reader = shapefile.Reader(shapefilename) 
         except:
             raise IOError, 'error reading shapefile %s.shp' % shapefile
         self.shapefilename = shapefilename
@@ -46,6 +128,57 @@ class PagerShapeFile(object):
             self.hasIndex = True
         self.getAttributes()
 
+    def createShapeIndex(self):
+        ldouble = '<d'
+        lint32  = '<L'
+        MAXNTILES = 1000
+        indexfile = ''
+        p,f = os.path.split(self.shapefilename)
+        f,e = os.path.splitext(f)
+        shxfile = os.path.join(p,f+'.shx')
+        if not os.path.isfile(shxfile):
+            raise Exception,'Missing .shx file for %s.' % self.shapefilename
+        nshapes = getNumShapes(shxfile)
+        if not nshapes:
+            raise Exception,'No records found in shx file for %s.' % self.shapefilename
+        fshape = open(self.shapefilename,'rb')
+        shptype,xmin,xmax,ymin,ymax = getBoundsAndType(fshape)
+        if shptype not in [3,5,8]:
+            raise Exception,'Only Shape Types of PolyLine, Polygon, MultiPoint are supported.'
+            f.close()
+
+        f.seek(f,100,0)
+        fshx = open(shxfile,'rb')
+        bboxes,mean_area = getBoundingBoxes(fshx,nshapes)
+        xdim,ydim,ncols,nrows = getDimensions(mean_area)
+
+        #now create the index file with all of the information about
+        #which shapes' bounding boxes are intersect with which tile
+        #tiles are numbered from left to right, top to bottom
+        #first, write the index file header
+        indexfile = os.path.join(p,f+'.spx')
+        fspx = open(indexfile,'wb')
+        writeHeader(fspx,nrows,ncols,xmin,xmax,ymin,ymax,xdim,ydim)
+        for i in range(0,nrows):
+            for j in range(0,ncols):
+                tilenum = i*ncols + j
+                txmin = xmin + j*xdim
+                txmax = txmin + xdim
+                tymax = ymax - i*ydim
+                tymin = tymax - ydim
+                a = [txmin,tymin,txmax-txmin,tymax-tymin]
+                b = [bboxes[:,1],bboxes[:,2],bboxes[:,3]-bboxes[:,1],bboxes[:,4]-bboxes[:,2]]
+                areas = rectint(a,b)
+                ishapes = find(areas)
+                #TODO - think about skipping the record if ishapes is empty
+                writeRecord(fspx,txmin,txmax,tymin,tymax,ishapes)
+
+        fspx.close()
+        fshp.close()
+        fshx.close()
+        return indexfile
+        
+        
     def getShapesByBoundingBox(self,bbox):
         #bbox is a tuple consisting of (xmin,xmax,ymin,ymax)
         #i = int, d = double

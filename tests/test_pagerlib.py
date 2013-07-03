@@ -3,9 +3,11 @@
 #third party
 from numpy import testing
 import numpy as np
+import os.path
 
 #local libraries
 from pagerutil import colors,interp,matutil,text
+from pagerio import shapefile
 
 def test_colors():
     hexinput = '#FF00AA'
@@ -50,7 +52,17 @@ def test_decToRoman():
 def test_setNumPrecision():
     assert text.setNumPrecision(531,1) == 500
 
+def test_shapefile():
+    homedir = os.path.dirname(os.path.abspath(__file__)) #where is this script?
+    shpfile = str(os.path.join(homedir,'..','data','testshape.shp')) #shapefile
+    if not os.path.isfile(shpfile):
+        raise Exception,'Could not find test data file %s' % shpfile
+    psf = shapefile.PagerShapeFile(shpfile)
+    indexfile = psf.createShapeIndex()
+    
+
 if __name__ == '__main__':
+    test_shapefile()
     test_colors()
     test_interp()
     test_repmat()
