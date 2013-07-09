@@ -4,10 +4,12 @@
 import os.path
 import struct
 from collections import OrderedDict
+import math
 
 #third party imports
 from mpl_toolkits.basemap import shapefile
 from numpy import array,concatenate,nan
+import numpy as np
 
 def rectint(r1,r2):
     #rects are xmin,xmax,ymin,ymax
@@ -26,7 +28,7 @@ def writeRecord(fidout,txmin,txmax,tymin,tymax,ishapes):
 
 def writeHeader(f,nrows,ncols,xmin,xmax,ymin,ymax,xdim,ydim):
     lint32 = '<L'
-    ldouble = '<D'
+    ldouble = '<d'
     f.write(struct.pack(lint32,nrows))#4
     f.write(struct.pack(lint32,ncols))#8
     f.write(struct.pack(ldouble,xmin))#16
@@ -44,8 +46,8 @@ def getDimensions(mean_area,xmin,xmax,ymin,ymax):
     while True:
         xdim = math.sqrt(mean_area)
         ydim = xdim
-        ncols = math.floor((xmax-xmin)/xdim)
-        nrows = math.floor((ymax-ymin)/ydim)
+        ncols = int(math.floor((xmax-xmin)/xdim))
+        nrows = int(math.floor((ymax-ymin)/ydim))
         ntiles = ncols*nrows
         if ntiles > MAXNTILES:
             mean_area = mean_area*2
@@ -72,27 +74,6 @@ def getBoundsAndType(f):
     shptype = struct.unpack(lint32,f.read(f,4))
     return (shptype,xmin,xmax,ymin,ymax)
 
-def getBoundingBoxes(fx,nshapes,shptype):
-    fx.seek(100,0)
-    b4double = '>4d'
-    bboxes = np.zeros(nshapes,4) #rows of [xmin ymin xmax ymax]
-    for i in range(0,nshapes):
-        offset = struct.unpack(lint32,fx.read(4))
-        reclen = struct.unpack(lint32,fx.read(4))
-        fx.seek((offset*2)+8,0)
-        tshptype = struct.unpack(lint32,fx.read(4))
-        if tshptype != shptype:
-            raise Exception,'Mixed shape types are not supported.'
-
-        box = struct.unpack(b4double,fx.read(4*8))
-        bboxes[i,:] = box
-    end
-    #get the mean area of the bounding boxes
-    areas = (bboxes[:,3] - bboxes[:,1]) * (bboxes[:,4] - bboxes[:,2])
-    mean_area = np.mean(areas)
-    return (bboxes,mean_area)
-
-
 
 class PagerShapeFile(object):
     """
@@ -106,7 +87,7 @@ class PagerShapeFile(object):
     # shapeType = None
     # nShapes = 0
     # attributes = OrderedDict()
-    # hasIndex = False
+    hasIndex = False
     def __init__(self,shapefilename):
         """
         Construct a PagerShapeFile object.
@@ -124,38 +105,38 @@ class PagerShapeFile(object):
         self.nShapes = self.reader.numRecords
         f,e = os.path.splitext(shapefilename)
         indexfile = f + '.spx'
+        self.getAttributes()
         if os.path.isfile(indexfile):
             self.hasIndex = True
-        self.getAttributes()
+        else:
+            self.createShapeIndex()
+        
 
+    def getBoundingBoxes(self):
+        bounding_boxes = []
+        for shape in self.getShapes():
+            bounding_boxes.append(shape['boundingbox'])
+        return bounding_boxes
+        
     def createShapeIndex(self):
         ldouble = '<d'
         lint32  = '<L'
         MAXNTILES = 1000
         indexfile = ''
-        p,f = os.path.split(self.shapefilename)
-        f,e = os.path.splitext(f)
-        shxfile = os.path.join(p,f+'.shx')
-        if not os.path.isfile(shxfile):
-            raise Exception,'Missing .shx file for %s.' % self.shapefilename
-        nshapes = getNumShapes(shxfile)
-        if not nshapes:
-            raise Exception,'No records found in shx file for %s.' % self.shapefilename
-        fshape = open(self.shapefilename,'rb')
-        shptype,xmin,xmax,ymin,ymax = getBoundsAndType(fshape)
-        if shptype not in [3,5,8]:
-            raise Exception,'Only Shape Types of PolyLine, Polygon, MultiPoint are supported.'
-            f.close()
-
-        f.seek(f,100,0)
-        fshx = open(shxfile,'rb')
-        bboxes,mean_area = getBoundingBoxes(fshx,nshapes)
-        xdim,ydim,ncols,nrows = getDimensions(mean_area)
+        
+        bboxes = np.array(self.getBoundingBoxes())
+        
+        areas = (bboxes[:,1] - bboxes[:,0]) * (bboxes[:,3] - bboxes[:,2])
+        mean_area = np.mean(areas)
+        xmin,xmax,ymin,ymax = self.bounds
+        xdim,ydim,ncols,nrows = getDimensions(mean_area,xmin,xmax,ymin,ymax)
 
         #now create the index file with all of the information about
         #which shapes' bounding boxes are intersect with which tile
         #tiles are numbered from left to right, top to bottom
         #first, write the index file header
+        p,f = os.path.split(self.shapefilename)
+        f,e = os.path.splitext(f)
         indexfile = os.path.join(p,f+'.spx')
         fspx = open(indexfile,'wb')
         writeHeader(fspx,nrows,ncols,xmin,xmax,ymin,ymax,xdim,ydim)
@@ -167,7 +148,7 @@ class PagerShapeFile(object):
                 tymax = ymax - i*ydim
                 tymin = tymax - ydim
                 a = [txmin,tymin,txmax-txmin,tymax-tymin]
-                b = [bboxes[:,1],bboxes[:,2],bboxes[:,3]-bboxes[:,1],bboxes[:,4]-bboxes[:,2]]
+                b = [bboxes[:,0],bboxes[:,1],bboxes[:,2]-bboxes[:,0],bboxes[:,3]-bboxes[:,1]]
                 areas = rectint(a,b)
                 ishapes = find(areas)
                 #TODO - think about skipping the record if ishapes is empty

@@ -54,12 +54,15 @@ def test_setNumPrecision():
 
 def test_shapefile():
     homedir = os.path.dirname(os.path.abspath(__file__)) #where is this script?
-    shpfile = str(os.path.join(homedir,'..','data','testshape.shp')) #shapefile
+    shpfile = str(os.path.join(homedir,'data','testshape.shp')) #shapefile
+    spxfile = str(os.path.join(homedir,'data','testshape.spx')) #shapefile
     if not os.path.isfile(shpfile):
         raise Exception,'Could not find test data file %s' % shpfile
+    if os.path.isfile(spxfile):
+        os.remove(spxfile)
     psf = shapefile.PagerShapeFile(shpfile)
-    indexfile = psf.createShapeIndex()
-    
+    if os.path.isfile(spxfile):
+        os.remove(spxfile)
 
 if __name__ == '__main__':
     test_shapefile()

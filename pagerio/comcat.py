@@ -72,6 +72,8 @@ def getContents(product,contentlist,outfolder=None,bounds = None,
         fh.close()
         edict = json.loads(event_data)
         pdict = edict['products'][product][0]
+        if pdict['status'].lower() == 'delete':
+            continue
         for content in contentlist:
             for contentkey in pdict['contents'].keys():
                 if re.search(content,contentkey) is not None:
@@ -93,5 +95,9 @@ if __name__ == '__main__':
     xmax = -113.774414
     ymin = 32.600048
     ymax = 41.851151
+    mintime = datetime(1900,1,1)
+    maxtime = datetime.utcnow()
     bounds = (xmin,xmax,ymin,ymax)
-    outlist = getContents('shakemap',['stationlist.txt'],outfolder='/Users/mhearne/tmp/',bounds=bounds)
+    outlist = getContents('shakemap',['stationlist.txt'],
+                          outfolder='/Users/mhearne/tmp/',
+                          bounds=bounds,starttime=mintime,endtime=maxtime)
