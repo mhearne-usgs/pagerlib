@@ -61,7 +61,7 @@ def test_shapefile():
     if os.path.isfile(spxfile):
         os.remove(spxfile)
     psf = shapefile.PagerShapeFile(shpfile)
-    if os.path.isfile(spxfile):
+     if os.path.isfile(spxfile):
         os.remove(spxfile)
 
 if __name__ == '__main__':
