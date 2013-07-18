@@ -108,9 +108,7 @@ class PagerShapeFile(object):
         self.getAttributes()
         if os.path.isfile(indexfile):
             self.hasIndex = True
-        else:
-            self.createShapeIndex()
-        
+                
 
     def getBoundingBoxes(self):
         bounding_boxes = []
@@ -147,10 +145,13 @@ class PagerShapeFile(object):
                 txmax = txmin + xdim
                 tymax = ymax - i*ydim
                 tymin = tymax - ydim
-                a = [txmin,tymin,txmax-txmin,tymax-tymin]
-                b = [bboxes[:,0],bboxes[:,1],bboxes[:,2]-bboxes[:,0],bboxes[:,3]-bboxes[:,1]]
-                areas = rectint(a,b)
-                ishapes = find(areas)
+                arect = [txmin,tymin,txmax-txmin,tymax-tymin]
+                brect = [bboxes[:,0],bboxes[:,1],bboxes[:,2]-bboxes[:,0],bboxes[:,3]-bboxes[:,1]]
+                #find the rectangles in b (tiles) that intersect with a (shape)
+                ishapes = []
+                for i in range(0,len(brect)):
+                    if rectint(arect,brect[i,:]):
+                        ishapes.append(i)
                 #TODO - think about skipping the record if ishapes is empty
                 writeRecord(fspx,txmin,txmax,tymin,tymax,ishapes)
 
