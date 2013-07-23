@@ -62,7 +62,8 @@ def checkContributors():
 
 def getContents(product,contentlist,outfolder=None,bounds = None,
                 starttime = None,endtime = None,magrange = None,
-                catalog = None,contributor = None,eventid = None):
+                catalog = None,contributor = None,eventid = None,
+                eventProperties=None,productProperties=None,listURL=False):
     """
     Download product contents for event(s) from ComCat, given a product type and list of content files for that product.
 
@@ -90,7 +91,9 @@ def getContents(product,contentlist,outfolder=None,bounds = None,
     @keyword catalog: Product catalog to use to constrain the search (centennial,nc, etc.).
     @keyword contributor: Product contributor, or who sent the product to ComCat (us,nc,etc.).
     @keyword eventid: Event id to search for - restricts search to a single event (usb000ifva)
-    @return: List of output files
+    @keyword eventProperties: Dictionary of event properties to match. {'reviewstatus':'approved'}
+    @keyword productProperties: Dictionary of event properties to match. {'alert':'yellow'}
+    @return: List of output files.
     @raise Exception: When:
       - Input catalog is invalid.
       - Input contributor is invalid.
@@ -113,7 +116,7 @@ def getContents(product,contentlist,outfolder=None,bounds = None,
     #below, and just parse the event json
     if eventid is not None:
         try:
-            outfiles = readEventURL(product,contentlist,outfolder,eventid)
+            outfiles = readEventURL(product,contentlist,outfolder,eventid,listURL=listURL)
             return outfiles
         except:
             raise Exception,'Could not retrieve data for eventid "%s"' % eventid
@@ -157,15 +160,31 @@ def getContents(product,contentlist,outfolder=None,bounds = None,
     fdict = json.loads(feed_data)
     outfiles = []
     for feature in fdict['features']:
+        if eventProperties is not None:
+            skip=False
+            for key,value in eventProperties.iteritems():
+                if not feature['properties'].has_key(key):
+                    skip=True
+                    break
+                else:
+                    fvalue = feature['properties'][key]
+                    if fvalue is None:
+                        skip=True
+                        break
+                    if fvalue.lower() != value.lower():
+                        skip=True
+                        break
+            if skip:
+                continue
         eid = feature['id']
         lat,lon,depth = feature['geometry']['coordinates']
         mag = feature['properties']['mag']
-        efiles = readEventURL(product,contentlist,outfolder,eid)
+        efiles = readEventURL(product,contentlist,outfolder,eid,listURL=listURL,productProperties=productProperties)
         outfiles += efiles
 
     return outfiles
 
-def readEventURL(product,contentlist,outfolder,eid):
+def readEventURL(product,contentlist,outfolder,eid,listURL=False,productProperties=None):
     """
     Download contents for a given event.
 
@@ -176,14 +195,25 @@ def readEventURL(product,contentlist,outfolder,eid):
     @returns: List of downloaded files.
     @raise Exception: When eventid URL could not be parsed.
     """
+    outfiles = []
     furl = EVENTURL.replace('[EVENTID]',eid)
     try:
         fh = urllib2.urlopen(furl)
         event_data = fh.read()
         fh.close()
-        outfiles = []
         edict = json.loads(event_data)
         pdict = edict['products'][product][0]
+
+        skip = False
+        if productProperties is not None:
+            for key,value in productProperties.iteritems():
+                if pdict['properties'].has_key(key) and pdict['properties'][key] is not None:
+                    if value.lower() != pdict['properties'][key].lower():
+                        skip=True
+                        break
+                
+        if skip:
+            return outfiles
         if pdict['status'].lower() == 'delete':
             return []
         for content in contentlist:
@@ -191,7 +221,11 @@ def readEventURL(product,contentlist,outfolder,eid):
                 path,contentfile = os.path.split(contentkey)
                 if contentfile.lower() == content.lower():
                     contenturl = pdict['contents'][contentkey]['url']
+                    if listURL:
+                        print contenturl
+                        continue
                     fh = urllib2.urlopen(contenturl)
+                    print 'Downloading %s...' % contenturl
                     data = fh.read()
                     fh.close()
                     outfile = os.path.join(outfolder,'%s_%s' % (eid,contentfile))
