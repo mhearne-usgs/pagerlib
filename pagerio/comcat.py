@@ -15,6 +15,50 @@ URLBASE = 'http://comcat.cr.usgs.gov/fdsnws/event/1/query?%s'
 CHECKBASE = 'http://comcat.cr.usgs.gov/fdsnws/event/1/%s'
 EVENTURL = 'http://comcat.cr.usgs.gov/earthquakes/eventpage/[EVENTID].json'
 TIMEFMT = '%Y-%m-%dT%H:%M:%S'
+NAN = float('nan')
+
+def getMomentComponents(edict):
+    mrr = float(edict['products']['moment-tensor'][0]['properties']['tensor-mrr'])
+    mtt = float(edict['products']['moment-tensor'][0]['properties']['tensor-mtt'])
+    mpp = float(edict['products']['moment-tensor'][0]['properties']['tensor-mpp'])
+    mrt = float(edict['products']['moment-tensor'][0]['properties']['tensor-mrt'])
+    mrp = float(edict['products']['moment-tensor'][0]['properties']['tensor-mrp'])
+    mtp = float(edict['products']['moment-tensor'][0]['properties']['tensor-mtp'])
+    return (mrr,mtt,mpp,mrt,mrp,mtp)
+
+def getFocalAngles(edict):
+    product = 'focal-mechanism'
+    backup_product = None
+    if 'moment-tensor' in edict['properties']['products'].keys():
+        product = 'moment-tensor'
+        if 'focal-mechanism' in edict['properties']['products'].keys():
+            backup_product = 'focal-mechanism'
+    strike = float('nan')
+    dip = float('nan')
+    rake = float('nan')
+    if not edict['products'][product]['properties'].has_key('nodal-plane-1-dip'):
+        if backup_product is not None and edict['products'][backup_product]['properties'].has_key('nodal-plane-1-dip'):
+            strike,dip,rake = _getAngles(edict['products'][backup_product])
+        else:
+            return (strike,dip,rake)
+    strike,dip,rake = _getAngles(edict['products'][product])
+    return (strike,dip,rake)
+
+def _getAngles(product):
+    strike = float(product['properties']['nodal-plane-1-strike'])
+    dip = float(product['properties']['nodal-plane-1-dip'])
+    if product['properties'].has_key('nodal-plane-1-rake'):
+        rake = float(product['properties']['nodal-plane-1-rake'])
+    else:
+        rake = float(product['properties']['nodal-plane-1-slip'])
+    return (strike,dip,rake)
+
+def getMomentType(edict):
+    mtype = 'NA'
+    if edict['products']['moment-tensor'][0]['properties'].has_key('beachball-type'):
+        mtype = edict['products']['moment-tensor'][0]['properties']['beachball-type']
+    return mtype
+        
 
 def checkCatalogs():
     """
@@ -59,6 +103,128 @@ def checkContributors():
     except:
         raise Exception,"Could not open %s to search for list of contributors" % url
     return contributors    
+
+def getEventData(bounds = None,starttime = None,endtime = None,magrange = None,
+                 catalog = None,contributor = None,getComponents=False,
+                 getAngles=False,getCentroid=False,getType=False,getDuration=False):
+    """Download a list of event dictionaries that could be represented in csv or tab separated format.
+
+    The data will include, but not be limited to:
+     - event id
+     - date/time
+     - lat
+     - lon
+     - depth
+     - magnitude
+
+     optionally, you can select to download (when available):
+     - moment tensor components:
+       - mrr
+       - mtt
+       - mpp
+       - mtp
+       - mrt
+       - mrp
+     - focal mechanism angles:
+       - Nodal Plane 1 strike
+       - Nodal Plane 1 dip
+       - Nodal Plane 1 rake
+     - Centroid lat,lon, depth, time
+     - Magnitude type (Mwc, Mwb, Mww, etc.)
+     - Duration
+    """
+    if catalog is not None and catalog not in checkCatalogs():
+        raise Exception,'Unknown catalog %s' % catalog
+    if contributor is not None and contributor not in checkContributors():
+        raise Exception,'Unknown contributor %s' % contributor
+
+    #start creating the url parameters
+    urlparams = {}
+    if starttime is not None:
+        urlparams['starttime'] = starttime.strftime(TIMEFMT)
+        if endtime is None:
+            urlparams['endtime'] = datetime.utcnow().strftime(TIMEFMT)
+    if endtime is not None:
+        urlparams['endtime'] = endtime.strftime(TIMEFMT)
+        if starttime is None:
+            urlparams['starttime'] = datetime(1900,1,1,0,0,0).strftime(TIMEFMT)
+
+    #we're using a rectangle search here
+    if bounds is not None:
+        urlparams['minlongitude'] = bounds[0]
+        urlparams['maxlongitude'] = bounds[1]
+        urlparams['minlatitude'] = bounds[2]
+        urlparams['maxlatitude'] = bounds[3]
+
+    if magrange is not None:
+        urlparams['minmagnitude'] = magrange[0]
+        urlparams['maxmagnitude'] = magrange[1]
+    
+    if catalog is not None:
+        urlparams['catalog'] = catalog
+    if contributor is not None:
+        urlparams['contributor'] = contributor
+
+    #search parameters we're not making available to the user (yet)
+    urlparams['orderby'] = 'time-asc'
+    urlparams['format'] = 'geojson'
+    params = urllib.urlencode(urlparams)
+    url = URLBASE % params
+    fh = urllib2.urlopen(url)
+    feed_data = fh.read()
+    fh.close()
+    fdict = json.loads(feed_data)
+
+    eventlist = []
+    for feature in fdict['features']:
+        eventdict = {}
+        eventdict['id'] = feature['id']
+        eventdict['time'] = datetime.utcfromtimestamp(feature['properties']['time']/1000)
+        eventdict['lat'] = feature['geometry']['coordinates'][1]
+        eventdict['lon'] = feature['geometry']['coordinates'][0]
+        eventdict['depth'] = feature['geometry']['coordinates'][2]
+        eventdict['mag'] = feature['properties']['mag']
+        types = feature['properties']['types'].strip(',').split(',')
+        hasMoment = 'moment-tensor' in types
+        hasFocal = 'focal-mechanism' in types
+        if getComponents:
+            if hasMoment:
+                eurl = feature['properties']['url']+'.json'
+                fh = urllib2.urlopen(eurl)
+                data = fh.read()
+                fh.close()
+                edict = json.loads(data)
+                mrr,mtt,mpp,mrt,mrp,mtp = getMomentComponents(edict)
+                eventdict['mrr'] = mrr
+                eventdict['mtt'] = mtt
+                eventdict['mpp'] = mpp
+                eventdict['mrt'] = mrt
+                eventdict['mrp'] = mrp
+                eventdict['mtp'] = mtp
+            else:
+                eventdict['mrr'] = NAN
+                eventdict['mtt'] = NAN
+                eventdict['mpp'] = NAN
+                eventdict['mrt'] = NAN
+                eventdict['mrp'] = NAN
+                eventdict['mtp'] = NAN
+        if getAngles:
+            if hasFocal or hasMoment:
+                strike,dip,rake = getFocalAngles(edict)
+                eventdict['strike'] = strike
+                eventdict['dip'] = dip
+                eventdict['rake'] = rake
+            else:
+                eventdict['strike'] = NAN
+                eventdict['dip'] = NAN
+                eventdict['rake'] = NAN
+        if getType:
+            if hasFocal or hasMoment:
+                eventdict['type'] = getMomentType(edict)
+            else:
+                eventdict['type'] = 'NA'
+        eventlist.append(eventdict.copy())
+    return eventlist
 
 def getContents(product,contentlist,outfolder=None,bounds = None,
                 starttime = None,endtime = None,magrange = None,
@@ -225,7 +391,7 @@ def readEventURL(product,contentlist,outfolder,eid,listURL=False,productProperti
                         print contenturl
                         continue
                     fh = urllib2.urlopen(contenturl)
-                    print 'Downloading %s...' % contenturl
+                    #print 'Downloading %s...' % contenturl
                     data = fh.read()
                     fh.close()
                     outfile = os.path.join(outfolder,'%s_%s' % (eid,contentfile))
