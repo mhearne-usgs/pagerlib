@@ -8,5 +8,4 @@ setup(name='pagerlib',
       url='',
       packages=['pagerutil','pagerio','pagermap'],
       install_requires=['numpy', 'matplotlib', 'scipy'],
-      scripts = ['getcomcat.py'],
 )
