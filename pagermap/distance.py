@@ -178,3 +178,18 @@ def sind(input):
     Returns sine of angle given in degrees.
     """
     return numpy.sin(input * numpy.pi/180) 
+
+def getLatLonToECEF(lat,lon,h=0):
+    a = 6378137.0 #meters
+    esq = 6.69437999014e-3
+    N = a/(numpy.sqrt((1-esq)*sind(lat)**2))
+    X = (N + h) * cosd(lat) * cosd(lon)
+    Y = (N + h) * cosd(lat) * sind(lon)
+    Z = (N * (1-esq) + h)*sind(lat)
+    return (X,Y,Z)
+
+def getHypoCentralDistance(lat1,lon1,h1,lat2,lon2,h2):
+    x1,y1,z1 = getLatLonToECEF(lat1,lon1,h1)
+    x2,y2,z2 = getLatLonToECEF(lat2,lon2,h2)
+    distance = numpy.sqrt((x2-x1)**2 + (y2-y1)*2 + (z2-z1)**2)
+    return distance

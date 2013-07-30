@@ -13,18 +13,24 @@ import numpy as np
 
 def rectint(r1,r2):
     #rects are xmin,xmax,ymin,ymax
-    separate =  r1[1] < r2[0] or r1[0] > r2[1] or r1[3] < r2[2] or r1[2] > r2[3]
-    return not separate
+    c1 = r1[1] < r2[:,0]
+    c2 = r1[0] > r2[:,1]
+    c3 = r1[3] < r2[:,2]
+    c4 = r1[2] > r2[:,3]
+    d1 = np.logical_or(c1,c2)
+    d2 = np.logical_or(c3,c4)
+    intersected = np.logical_not(np.logical_or(d1,d2)).nonzero()
+    return intersected
 
 def writeRecord(fidout,txmin,txmax,tymin,tymax,ishapes):
     lint32 = '<L'
-    ldouble = '<D'
+    ldouble = '<d'
     fidout.write(struct.pack(ldouble,txmin))
-    fidout.write(struct.pack(ldouble,txmax,'double'))
-    fidout.write(struct.pack(ldouble,tymin,'double'))
-    fidout.write(struct.pack(ldouble,tymax,'double'))
-    fidout.write(struct.pack(lint32,len(ishapes),'int32'))
-    fidout.write(struct.pack('<%iL' % len(ishapes),ishapes))
+    fidout.write(struct.pack(ldouble,txmax))
+    fidout.write(struct.pack(ldouble,tymin))
+    fidout.write(struct.pack(ldouble,tymax))
+    fidout.write(struct.pack(lint32,len(ishapes)))
+    fidout.write(struct.pack('<%iL' % len(ishapes),*ishapes))
 
 def writeHeader(f,nrows,ncols,xmin,xmax,ymin,ymax,xdim,ydim):
     lint32 = '<L'
@@ -145,19 +151,14 @@ class PagerShapeFile(object):
                 txmax = txmin + xdim
                 tymax = ymax - i*ydim
                 tymin = tymax - ydim
-                arect = [txmin,tymin,txmax-txmin,tymax-tymin]
-                brect = [bboxes[:,0],bboxes[:,1],bboxes[:,2]-bboxes[:,0],bboxes[:,3]-bboxes[:,1]]
+                arect = [txmin,txmax,tymin,tymax]
                 #find the rectangles in b (tiles) that intersect with a (shape)
-                ishapes = []
-                for i in range(0,len(brect)):
-                    if rectint(arect,brect[i,:]):
-                        ishapes.append(i)
+                ishapes = rectint(arect,bboxes)
                 #TODO - think about skipping the record if ishapes is empty
-                writeRecord(fspx,txmin,txmax,tymin,tymax,ishapes)
+                writeRecord(fspx,txmin,txmax,tymin,tymax,ishapes[0].tolist())
 
         fspx.close()
-        fshp.close()
-        fshx.close()
+        self.hasIndex = True
         return indexfile
         
         
@@ -187,7 +188,8 @@ class PagerShapeFile(object):
                     nshapes = struct.unpack('i',f.read(4))[0]
                     fmt = str(nshapes)+'i'
                     ishapes = struct.unpack(fmt,f.read(nshapes*4))
-                    if rectint(bbox,(txmin,txmax,tymin,tymax)):
+                    intersected = rectint(bbox,np.array([[txmin,txmax,tymin,tymax]]))
+                    if len(intersected[0]):
                         allshapes = allshapes.union(set(ishapes))
             f.close()
             allshapes = [shp-1 for shp in list(allshapes)]

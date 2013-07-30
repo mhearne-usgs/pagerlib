@@ -15,54 +15,32 @@ import matplotlib.pyplot as plt
 from grid import Grid
 
 class GMTGrid(Grid):
-    def __init__(self,grdfile=None,fmt='f',bandname=None):
-        #Valid values for fmt are:
-        #'i' (16 bit signed integer)
-        #'l' (32 bit signed integer)
-        #'f' (32 bit float)
-        #'d' (64 bit float)
+    def __init__(self,grdfile=None,fmt='f',bandname=None,bounds=None):
+        """
+        Read binary "native" GMT grid files or COARDS-compliant netcdf GMT grid files.
+        @keyword grdfile: Name of input grid file.
+        @keyword fmt: Format type - only required for native files. Valid options are:
+                      - 'i' (16 bit signed integer)
+                      - 'l' (32 bit signed integer)
+                      - 'f' (32 bit float)
+                      - 'd' (64 bit float)
+        @keyword bandname: Short name of data set ("elevation","mmi", etc.)
+        @keyword bounds: Tuple containing (xmin,xmax,ymin,ymax).  Native files not supported yet.
+        """
         self.geodict = {}
         self.griddata = None
         if grdfile is None:
             return
 
-        #check the file size against the supposed format - won't be able to 
-        #tell the difference between floats and 32 bit integers though.  should 
-        #probably also put that in the function documentation.
-        
-        f = open(grdfile,'rb')
-        f.seek(8,0)
-        offset = struct.unpack('I',f.read(4))[0]
-        if offset == 0 or offset == 1:
-            ftype = 'binary'
-        else:
-            ftype = 'netcdf'
+        #netcdf or native?
+        ftype = self.getFileType(grdfile)
         
         if ftype == 'netcdf':
-            f.close()
-            cdf = netcdf.netcdf_file(grdfile)
-            self.geodict['nrows'] = cdf.dimensions['y']
-            self.geodict['ncols'] = cdf.dimensions['x']
-            self.geodict['xmin'] = cdf.variables['x'].data.min()
-            self.geodict['xmax'] = cdf.variables['x'].data.max()
-            self.geodict['ymin'] = cdf.variables['y'].data.min()
-            self.geodict['ymax'] = cdf.variables['y'].data.max()
-            #make sure the x and y cell dimensions are reasonably constant
-            dx = numpy.diff(cdf.variables['x'].data)
-            dy = numpy.diff(cdf.variables['y'].data)
-            isXConsistent = numpy.abs(1 - numpy.max(dx)/numpy.min(dx)) < 0.01
-            isYConsistent = numpy.abs(1 - numpy.max(dx)/numpy.min(dx)) < 0.01
-            if isXConsistent and isYConsistent:
-                self.geodict['xdim'] = numpy.mean(dx)
-                self.geodict['ydim'] = numpy.mean(dy)
-            else:
-                raise Exception,'X or Y cell dimensions are not consistent!'
-            self.griddata = cdf.variables['z'].data
-            self.griddata = numpy.flipud(numpy.copy(self.griddata))
-            self.geodict['bandnames'] = ['Unknown']
-            cdf.close()
+            self.load(grdfile,ftype,bounds=bounds)
             return
-
+        
+        #we're dealing with a binary "native" GMT grid file
+        f = open(grdfile,'rb')
         f.seek(0,0)
         self.geodict = {}
         self.geodict['ncols'] = struct.unpack('I',f.read(4))[0]
@@ -104,6 +82,69 @@ class GMTGrid(Grid):
         self.griddata = numpy.array(data).reshape(self.geodict['nrows'],-1)
         self.griddata = (self.griddata * zscale) + zoffset
         f.close()     
+
+    def getFileType(self,grdfile):
+        #TODO:check the file size against the supposed format - won't be able to 
+        #tell the difference between floats and 32 bit integers though.  should 
+        #probably also put that in the function documentation.
+        f = open(grdfile,'rb')
+        f.seek(8,0)
+        offset = struct.unpack('I',f.read(4))[0]
+        if offset == 0 or offset == 1:
+            ftype = 'binary'
+        else:
+            ftype = 'netcdf'
+        return ftype
+        
+    def load(self,grdfile,ftype,bounds=None):
+        if ftype == 'netcdf':
+            cdf = netcdf.netcdf_file(grdfile)
+            xvar = cdf.variables['x'].data
+            yvar = cdf.variables['y'].data
+
+            #do some QA on the x and y data
+            dx = numpy.diff(xvar)
+            dy = numpy.diff(yvar)
+
+            isXConsistent = numpy.abs(1 - numpy.max(dx)/numpy.min(dx)) < 0.01
+            isYConsistent = numpy.abs(1 - numpy.max(dx)/numpy.min(dx)) < 0.01
+            if not isXConsistent or not isYConsistent:
+                raise Exception,'X or Y cell dimensions are not consistent!'
+
+            #assign x/y resolution
+            self.geodict['xdim'] = numpy.mean(dx)
+            self.geodict['ydim'] = numpy.mean(dy)
+
+            if bounds is not None:
+                xmin,xmax,ymin,ymax = bounds
+                ixmin = numpy.abs(xvar-xmin).argmin()
+                ixmax = numpy.abs(xvar-xmax).argmin()
+                iymin = numpy.abs(yvar-ymin).argmin()
+                iymax = numpy.abs(yvar-ymax).argmin()
+                self.geodict['xmin'] = xvar[ixmin]
+                self.geodict['xmax'] = xvar[ixmax]
+                self.geodict['ymin'] = yvar[iymin]
+                self.geodict['ymax'] = yvar[iymax]
+                zvar = cdf.variables['z'].data
+                self.griddata = numpy.flipud(zvar[iymin:iymax,ixmin:ixmax])
+                m,n = self.griddata.shape
+                self.geodict['nrows'] = m
+                self.geodict['ncols'] = n
+            else:
+                self.geodict['nrows'] = cdf.dimensions['y']
+                self.geodict['ncols'] = cdf.dimensions['x']
+                self.geodict['xmin'] = cdf.variables['x'].data.min()
+                self.geodict['xmax'] = cdf.variables['x'].data.max()
+                self.geodict['ymin'] = cdf.variables['y'].data.min()
+                self.geodict['ymax'] = cdf.variables['y'].data.max()
+                self.griddata = numpy.flipud(numpy.copy(self.griddata))
+
+            self.geodict['bandnames'] = ['Unknown']
+            cdf.close()
+        else:
+            raise NotImplementedError,'Only COARDS-compliant netcdf files are supported at this time!'            
+        return
+        
 
     def save(self,filename,fmt='binary'):
         nrows,ncols = self.griddata.shape

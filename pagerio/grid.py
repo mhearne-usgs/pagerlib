@@ -38,7 +38,7 @@ class Grid:
     #not the upper left hand corner (for example).
         
     def __init__(self):
-        """Does nothing (Abstract class)"""
+        """Does nothing (implemented by subclasses)"""
         pass
 
     def load(self,filename):
@@ -48,6 +48,14 @@ class Grid:
     def save(self,filename):
         """Does nothing (can be implemented by subclasses.)"""
         pass
+
+    def loadFromGrid(self,grid):
+        """
+        Instantiate a grid from another grid.
+        @param grid: Any subclass of the Grid object.
+        """
+        self.geodict = grid.geodict.copy()
+        self.griddata = grid.griddata.copy()
 
     def interpolateToGrid(self,geodict,method='linear'): #implement here
         """
