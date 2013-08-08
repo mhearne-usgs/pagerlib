@@ -137,7 +137,8 @@ class GMTGrid(Grid):
                 self.geodict['xmax'] = cdf.variables['x'].data.max()
                 self.geodict['ymin'] = cdf.variables['y'].data.min()
                 self.geodict['ymax'] = cdf.variables['y'].data.max()
-                self.griddata = numpy.flipud(numpy.copy(self.griddata))
+                zdata = cdf.variables['z'].data
+                self.griddata = numpy.flipud(numpy.copy(zdata))
 
             self.geodict['bandnames'] = ['Unknown']
             cdf.close()
@@ -146,13 +147,12 @@ class GMTGrid(Grid):
         return
         
 
-    def save(self,filename,fmt='binary'):
+    def save(self,filename,fmt='netcdf'):
         nrows,ncols = self.griddata.shape
         xmin = self.geodict['xmin'] - self.geodict['xdim']/2.0
         ymax = self.geodict['ymax'] + self.geodict['ydim']/2.0
         xmax = self.geodict['xmax'] + self.geodict['xdim']/2.0
         ymin = self.geodict['ymin'] - self.geodict['ydim']/2.0
-        
         
         if fmt != 'binary':
             cdf = netcdf.netcdf_file(filename,'w')
@@ -163,9 +163,26 @@ class GMTGrid(Grid):
             z = cdf.createVariable('z',self.griddata.dtype,['y','x'])
             xdim = self.geodict['xdim']
             ydim = self.geodict['ydim']
-            x[:] = numpy.arange(xmin,xmax+xdim,xdim)
-            y[:] = numpy.arange(ymin,ymax+ydim,ydim)
-            z.data = self.griddata
+            xdata = numpy.arange(xmin,xmax+xdim,xdim)
+            ydata = numpy.arange(ymin,ymax+ydim,ydim)
+            txmax = xmax+xdim
+            tymax = ymax+ydim
+            while len(xdata) != ncols:
+                if len(xdata) > ncols:
+                    txmax -= xdim
+                if len(xdata) < ncols:
+                    txmax += xdim
+                xdata = numpy.arange(xmin,txmax,xdim)
+            while len(ydata) != nrows:
+                if len(ydata) > nrows:
+                    tymax -= ydim
+                if len(ydata) < nrows:
+                    tymax += ydim
+                ydata = numpy.arange(ymin,tymax,ydim)
+            
+            x[:] = xdata
+            y[:] = ydata
+            z[:] = self.griddata
             cdf.flush()
             cdf.close()
             return

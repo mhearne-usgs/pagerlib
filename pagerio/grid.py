@@ -197,8 +197,19 @@ class Grid:
         lat = uly - row*ydim
         return (lat,lon)
 
-    def plot(self,ax):
-        mappable = ax.imshow(self.griddata)
+    def plot(self,ax,bounds=None):
+        if bounds is None:
+            xmin = self.geodict['xmin']
+            xmax = self.geodict['xmax']
+            ymin = self.geodict['ymin']
+            ymax = self.geodict['ymax']
+            data = self.griddata
+        else:
+            xmin,xmax,ymin,ymax = bounds
+            uly,ulx = self.getRowCol(ymax,xmin)
+            lry,lrx = self.getRowCol(ymin,xmax)
+            data = self.griddata[uly:lry,ulx:lrx]
+        mappable = ax.imshow(data,origin='upper',extent=(xmin,xmax,ymin,ymax))
         ax._sci(mappable)
         xticks = ax.get_xticks()
         yticks = ax.get_yticks()
