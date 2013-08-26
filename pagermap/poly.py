@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-import matplotlib.nxutils as nx
-from numpy import array
+import matplotlib.path as path
+import numpy as np
 from pylab import *
 
 class PagerPolygon(object):
@@ -22,8 +22,8 @@ class PagerPolygon(object):
         @param xp: Numpy array of x vertices, with parts separated by NaN.
         @param yp: Numpy array of y vertices, with parts separated by NaN.
         """
-        xp = array(inxp)
-        yp = array(inyp)
+        xp = np.array(inxp)
+        yp = np.array(inyp)
         
         self.verts = []
         self.xmin = xp[xp.argmin()]
@@ -76,14 +76,24 @@ class PagerPolygon(object):
             return False
 
         if not self.isComplex:
-            if nx.pnpoly(x,y,self.verts):
+            xvert,yvert = zip(*self.verts)
+            points = np.ones((len(yvert),2))
+            points[:,0] = xvert
+            points[:,1] = yvert
+            p = path.Path(points)
+            if p.contains_point((x,y)):
                 return True
             else:
                 return False
         else:
             for i in range(0,self.nparts):
                 vertp = self.verts[i]
-                if nx.pnpoly(x,y,vertp):
+                xvert,yvert = zip(*vertp)
+                points = np.ones((len(yvert),2))
+                points[:,0] = xvert
+                points[:,1] = yvert
+                p = path.Path(points)
+                if p.contains_point((x,y)):
                     return True
             return False
 
@@ -102,12 +112,22 @@ class PagerPolygon(object):
         """
         if not self.isComplex:
             points = zip(x,y)
-            return nx.points_inside_poly(points,self.verts)
+            xvert,yvert = zip(*self.verts)
+            points = np.ones((len(yvert),2))
+            points[:,0] = xvert
+            points[:,1] = yvert
+            p = path.Path(points)
+            return p.contains_points(points)
         else:
             psum = zeros(x.shape)
             for i in range(0,self.verts):
                 vertp = self.verts[i]
-                psum = psum | nx.points_inside_poly(points,vertp)
+                xvert,yvert = zip(*vertp)
+                points = np.ones((len(yvert),2))
+                points[:,0] = xvert
+                points[:,1] = yvert
+                p = path.Path(points)
+                psum = psum | p.contains_points(points)
 
             return psum
 
@@ -129,8 +149,13 @@ def inmultipoly(x,y,verts):
     m,n = x.shape
     x = x.reshape(m*n,1)
     y = y.reshape(m*n,1)
-    points = squeeze(array(zip(x,y)))
-    inside = nx.points_inside_poly(points,verts)
+    points = squeeze(np.array(zip(x,y)))
+    xvert,yvert = zip(*verts)
+    points = np.ones((len(yvert),2))
+    points[:,0] = xvert
+    points[:,1] = yvert
+    p = path.Path(points)
+    inside = p.contains_points(points)
     inside = inside.reshape(m,n)
     return inside
 

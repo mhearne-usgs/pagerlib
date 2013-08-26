@@ -8,7 +8,6 @@ import sys
 import numpy
 from scipy.io import netcdf
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 #local imports
@@ -240,25 +239,6 @@ class GMTGrid(Grid):
         return
         
 if __name__ == '__main__':
-    gridfile = sys.argv[1]
-    mygrid = GMTGrid(gridfile)
-    print 'Here'
-    plt.imshow(mygrid.griddata)
-    print 'there'
-    plt.title('Original image')
-    plt.savefig('original.png')
-    print 'anywhere'
-    plt.close(plt.gcf())
-    print 'Here again'
-    
-    newgridfile = 'output.grd'
-    mygrid.save(newgridfile)
-    print 'lalala'
-    mygrid2 = GMTGrid(newgridfile)
-    plt.imshow(mygrid.griddata)
-    plt.title('Saved image')
-    plt.savefig('saved.png')
-    print 'not here'
-    #plt.close(plt.gcf())    
+    pass
     
         

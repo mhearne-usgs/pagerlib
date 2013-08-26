@@ -1,7 +1,7 @@
 from numpy import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
-from losspager.util.interp import interp2
+from pagerutil.interp import interp2
 import sys
 
 class GridError(Exception):
