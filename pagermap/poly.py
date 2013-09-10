@@ -113,11 +113,11 @@ class PagerPolygon(object):
         if not self.isComplex:
             points = zip(x,y)
             xvert,yvert = zip(*self.verts)
-            points = np.ones((len(yvert),2))
-            points[:,0] = xvert
-            points[:,1] = yvert
-            p = path.Path(points)
-            return p.contains_points(points)
+            verts = np.ones((len(yvert),2))
+            verts[:,0] = xvert
+            verts[:,1] = yvert
+            poly = path.Path(verts)
+            return poly.contains_points(points)
         else:
             psum = zeros(x.shape)
             for i in range(0,self.verts):
