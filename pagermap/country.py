@@ -33,6 +33,8 @@ def getCountryCode(value):
     if type(value) is StringType:
         if len(value) != 2 and len(value) != 3:
             doRegMatch = True
+    elif type(value) is IntType:
+        pass
     else:
         msg = 'Unsupported country search key %s with type %s' % (str(value),type(value))
         raise TypeError, msg
