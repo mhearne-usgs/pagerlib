@@ -30,11 +30,12 @@ def getCountryCode(value):
       - 'number' Numeric ISO country code.
     """
     doRegMatch = False
+    doNumberMatch = False
     if type(value) is StringType:
         if len(value) != 2 and len(value) != 3:
             doRegMatch = True
     elif type(value) is IntType:
-        pass
+        doNumberMatch = True
     else:
         msg = 'Unsupported country search key %s with type %s' % (str(value),type(value))
         raise TypeError, msg
@@ -54,6 +55,19 @@ def getCountryCode(value):
                 else:
                     cdict['shortname'] = country[0]
                 break
+        if doNumberMatch:
+            if value in country:
+                cdict['name'] = country[0]
+                cdict['alpha2'] = country[1]
+                cdict['alpha3'] = country[2]
+                cdict['number'] = int(country[3])
+                if len(country) == 5:
+                    cdict['shortname'] = country[4]
+                else:
+                    cdict['shortname'] = country[0]
+                break
+            else:
+                continue
         if value in country or value.upper() in country:
             cdict['name'] = country[0]
             cdict['alpha2'] = country[1]
