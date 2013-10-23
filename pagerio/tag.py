@@ -16,6 +16,9 @@ class Tag(object):
         self.schema = schema
         self.children = []
 
+    def addAttribute(self,key,value):
+        self.attributes[key] = value
+        
     def loadFromFile(self,xmlfile):
         xmlstr = open(xmlfile,'rt').read()
         return self.loadFromString(xmlstr)
