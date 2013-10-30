@@ -303,7 +303,7 @@ class EsriGrid(Grid):
             hdrstruct['ulxmap'] = worldinfo[4]
             hdrstruct['ulymap'] = worldinfo[5]
         
-        #one kind of header file has nodata value, the other doesn't
+        #some header files have nodata values, the others don't
         if 'nodata_value' in hdrstruct.keys():
             hdrstruct['nodata'] = hdrstruct['nodata_value']
         elif 'nodata' in hdrstruct.keys():
@@ -316,7 +316,8 @@ class EsriGrid(Grid):
             hdrstruct['layout'] = 'bil'
 
         #one version has "nbits", indicating integer data type
-        if 'nbits' in hdrstruct.keys() and 'pixeltype' not in hdrstruct.keys():
+        isInt = ('pixeltype' in hdrstruct.keys() and hdrstruct['pixeltype'].lower().find('int') > -1) or 'pixeltype' not in hdrstruct.keys()
+        if 'nbits' in hdrstruct.keys() and isInt:
             if hdrstruct['nbits'] == 8: hdrstruct['precision'] = numpy.int8
             elif hdrstruct['nbits'] == 16: hdrstruct['precision'] = numpy.int16
             elif hdrstruct['nbits'] == 32: hdrstruct['precision'] = numpy.int32
