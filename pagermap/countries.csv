@@ -31,7 +31,7 @@ Botswana,BW,BWA,072
 Bouvet Island,BV,BVT,074
 Brazil,BR,BRA,076
 British Indian Ocean Territory,IO,IOT,086
-Brunei Darussalam,BN,BRN,096
+Brunei Darussalam,BN,BRN,096,Brunei
 Bulgaria,BG,BGR,100
 Burkina Faso,BF,BFA,854
 Burundi,BI,BDI,108
@@ -49,7 +49,7 @@ Cocos (Keeling) Islands,CC,CCK,166
 Colombia,CO,COL,170
 Comoros,KM,COM,174
 Congo,CG,COG,178
-the Democratic Republic of the Congo,CD,COD,180
+the Democratic Republic of the Congo,CD,COD,180, DR Congo
 Cook Islands,CK,COK,184
 Costa Rica,CR,CRI,188
 Côte d'Ivoire,CI,CIV,384
@@ -95,7 +95,7 @@ Guinea-Bissau,GW,GNB,624
 Guyana,GY,GUY,328
 Haiti,HT,HTI,332
 Heard Island and McDonald Islands,HM,HMD,334
-Holy See (Vatican City State),VA,VAT,336
+Holy See (Vatican City State),VA,VAT,336,the Vatican
 Honduras,HN,HND,340
 Hong Kong,HK,HKG,344
 Hungary,HU,HUN,348
@@ -115,8 +115,8 @@ Jordan,JO,JOR,400
 Kazakhstan,KZ,KAZ,398
 Kenya,KE,KEN,404
 Kiribati,KI,KIR,296
-Democratic People's Republic of Korea,KP,PRK,408
-Republic of Korea,KR,KOR,410
+Democratic People's Republic of Korea,KP,PRK,408,North Korea
+Republic of Korea,KR,KOR,410,South Korea
 Kuwait,KW,KWT,414
 Kyrgyzstan,KG,KGZ,417
 Lao People's Democratic Republic,LA,LAO,418,Laos
@@ -129,7 +129,7 @@ Liechtenstein,LI,LIE,438
 Lithuania,LT,LTU,440
 Luxembourg,LU,LUX,442
 Macao,MO,MAC,446
-the former Yugoslav Republic of Macedonia,MK,MKD,807
+the former Yugoslav Republic of Macedonia,MK,MKD,807,Macedonia
 Madagascar,MG,MDG,450
 Malawi,MW,MWI,454
 Malaysia,MY,MYS,458
@@ -143,7 +143,7 @@ Mauritius,MU,MUS,480
 Mayotte,YT,MYT,175
 Mexico,MX,MEX,484
 Federated States of Micronesia,FM,FSM,583
-Republic of Moldova,MD,MDA,498
+Republic of Moldova,MD,MDA,498,Moldova
 Monaco,MC,MCO,492
 Mongolia,MN,MNG,496
 Montenegro,ME,MNE,499
@@ -167,7 +167,7 @@ Norway,NO,NOR,578
 Oman,OM,OMN,512
 Pakistan,PK,PAK,586
 Palau,PW,PLW,585
-State of Palestine,PS,PSE,275
+State of Palestine,PS,PSE,275,Palestine
 Panama,PA,PAN,591
 Papua New Guinea,PG,PNG,598
 Paraguay,PY,PRY,600
@@ -178,9 +178,9 @@ Poland,PL,POL,616
 Portugal,PT,PRT,620
 Puerto Rico,PR,PRI,630
 Qatar,QA,QAT,634
-Réunion,RE,REU,638
+Reunion,RE,REU,638
 Romania,RO,ROU,642
-Russian Federation,RU,RUS,643
+Russian Federation,RU,RUS,643,Russia
 Rwanda,RW,RWA,646
 Saint Barthélemy,BL,BLM,652
 "Saint Helena, Ascension and Tristan da Cunha",SH,SHN,654,Saint Helena
@@ -214,10 +214,10 @@ Svalbard and Jan Mayen,SJ,SJM,744
 Swaziland,SZ,SWZ,748
 Sweden,SE,SWE,752
 Switzerland,CH,CHE,756
-Syrian Arab Republic,SY,SYR,760
-"Taiwan, Province of China",TW,TWN,158, Taiwan
+Syrian Arab Republic,SY,SYR,760,Syria
+"Taiwan, Province of China",TW,TWN,158,Taiwan
 Tajikistan,TJ,TJK,762
-United Republic of Tanzania,TZ,TZA,834
+United Republic of Tanzania,TZ,TZA,834,Tanzania
 Thailand,TH,THA,764
 Timor-Leste,TL,TLS,626
 Togo,TG,TGO,768
