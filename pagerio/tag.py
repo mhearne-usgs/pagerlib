@@ -32,7 +32,8 @@ class Tag(object):
         atts = root.attributes
         hasData = root.firstChild.nodeType == root.TEXT_NODE and len(root.firstChild.nodeValue.strip())
         if len(atts) and hasData:
-            raise Exception,'You can have child elements or tag data, but not both!'
+            pass
+            #raise Exception,'You can have child elements or tag data, but not both!'
         if len(atts):
             for item in atts.items():
                 key = item[0]
@@ -56,7 +57,8 @@ class Tag(object):
             hasData = c1 and c2 and c3
 
         if len(atts) and hasData:
-            raise Exception,'You can have child elements or tag data, but not both!'
+            pass
+            #raise Exception,'You can have child elements or tag data, but not both!'
         attributes = {}
         if len(atts):
             for item in atts.items():
