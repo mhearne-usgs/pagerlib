@@ -7,6 +7,50 @@ import math
 class FixedFormatError(Exception):
     """used for noting errors with FixedFormatWriter and Reader"""
 
+def readFixedFormatString(speclist,line):
+    """
+    Read a fixed format string given the line specification and a fixed-width formatted string.
+    @parameter speclist: List of tuples, where each tuple contains:
+                         - a sub-tuple containing the start/stop positions of the value in the line (1 offset). 
+                         - A FORTRAN format string
+    @parameter line:    A fixed-width formatted string.
+    @return: List of values read from line according to speclist.
+    @raise FixedFormatError: When input string doesn't match speclist.
+
+    NB: This function assumes that blank spaces at positions where the spec says there should be floats or ints
+    should be interpreted as NaN values.
+    """
+    vlist = []
+    ftrans = {'a':'s','i':'i','f':'f'}
+    numberpattern = r'[-+]?[0-9]*\.?[0-9]+'
+    for spec in speclist:
+        smin = spec[0][0]-1
+        smax = spec[0][1]
+        if smax > len(line):
+            raise FixedFormatError,'Spec exceeds length of input string'
+        ffmt = spec[1]
+        valuestr = line[smin:smax]
+        if ffmt.find('f') > -1:
+            if valuestr.strip() == '':
+                value = float('nan')
+            else:
+                try:
+                    value = float(line[smin:smax])
+                except:
+                    raise FixedFormatError,'String segment "%s" does not match format "%s"' % (valuestr,ffmt)
+        elif ffmt.find('i') > -1:
+            if valuestr.strip() == '':
+                value = float('nan')
+            else:
+                try:
+                    value = int(line[smin:smax])
+                except:
+                    raise FixedFormatError,'String segment "%s" does not match format "%s"' % (valuestr,ffmt)
+        else: #this is a string
+            value = valuestr.strip()
+        vlist.append(value)
+    return vlist
+    
 def getFixedFormatString(speclist,vlist):
     """
     Create a fixed format string given the line specification and a list of values.
@@ -17,6 +61,9 @@ def getFixedFormatString(speclist,vlist):
                          with the following exception: A NaN value where the spec says float or int
                          is OK.  Spaces will be inserted for the NaN value.
     @return: Formatted string (no newline at the end).
+
+    NB: This function assumes that any NaN values at positions where the speclist says there
+    should be floats or ints are OK, and should be written out as spaces.
     """
     if len(speclist) != len(vlist):
         raise FixedFormatError,'speclist length != vlist length' 
@@ -87,14 +134,21 @@ if __name__ == '__main__':
                 ((79,86),'a8'),
                 ((87,87),'a1')]
     
-    tpl = ['(','#','eM0','eCLVD','eRR','eTT','ePP','eRT','eTP','ePR','NCO1','NCO2','Duration',')']
-    print getFixedFormatString(speclist,tpl)
+    vlist = ['(','#','eM0','eCLVD','eRR','eTT','ePP','eRT','eTP','ePR','NCO1','NCO2','Duration',')']
+    vstr = getFixedFormatString(speclist,vlist)
+    print vstr
 
-    tpl = ['fred',float('nan'),5]
+    vlistout = readFixedFormatString(speclist,vstr)
+    print vlistout
+    
+    vlist = ['fred',float('nan'),5]
     speclist = [((1,4),'a4'),
                 ((6,10),'f5.3'),
                 ((12,14),'i3')]
-    print getFixedFormatString(speclist,tpl)
+    vstr = getFixedFormatString(speclist,vlist)
+    print vstr
+    vlistout = readFixedFormatString(speclist,vstr)
+    print vlistout
             
     
     
