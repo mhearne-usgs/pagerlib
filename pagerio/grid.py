@@ -1,4 +1,4 @@
-from numpy import *
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from pagerutil.interp import interp2
@@ -110,17 +110,17 @@ class Grid:
             endx += 360
             ulx1 += 360
 
-        gxi = arange(startx,endx,xdim,dtype=float64)
-        gyi = arange(endy,starty,-ydim,dtype=float64)
+        gxi = np.arange(startx,endx,xdim,dtype=float64)
+        gyi = np.arange(endy,starty,-ydim,dtype=float64)
         
         #we may wind up with an array that is one shorter than we need...
         #in this case, append the last value.
         if len(gxi) < ncols:
-            gxi = concatenate((gxi,[endx]))
+            gxi = np.concatenate((gxi,[endx]))
         if len(gxi) > ncols:
             gxi = gxi[0:-1]
         if len(gyi) < nrows:
-            gyi = concatenate((gyi,[starty]))
+            gyi = np.concatenate((gyi,[starty]))
         if len(gyi) > nrows:
             gyi = gyi[0:-1]
 
@@ -250,8 +250,8 @@ class Grid:
         uly = self.geodict['ymax']
         xdim = self.geodict['xdim']
         ydim = self.geodict['ydim']
-        col = int((lon-ulx)/xdim)
-        row = int((uly-lat)/ydim)
+        col = np.floor((lon-ulx)/xdim)
+        row = np.floor((uly-lat)/ydim)
         return (row,col)
 
     def getValue(self,lat,lon): #return nearest neighbor value
@@ -271,8 +271,8 @@ class Grid:
         if self.geodict['xmax'] < ulx and lon < ulx:
             lon += 360
 
-        col = round(((lon - ulx)/xdim))
-        row = round(((uly - lat)/ydim))
+        col = np.round(((lon - ulx)/xdim))
+        row = np.round(((uly - lat)/ydim))
         if row < 0 or row > nrows-1 or col < 0 or col > ncols-1:
             msg = 'Lat/Lon (%.6f,%.6f) is outside Grid boundaries: %s' % (lat,lon,str(self.getRange()))
             raise GridError, msg
