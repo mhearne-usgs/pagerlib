@@ -57,6 +57,7 @@ def getFixedFormatString(speclist,vlist):
     @parameter speclist: List of tuples, where each tuple contains:
                          - a sub-tuple containing the start/stop positions of the value in the line (1 offset). 
                          - A FORTRAN format string
+                         - (optional) boolean value indicating whether there should be leading zeros.
     @parameter vlist:    A list of values, which must match the format strings given in speclist,
                          with the following exception: A NaN value where the spec says float or int
                          is OK.  Spaces will be inserted for the NaN value.
@@ -82,6 +83,11 @@ def getFixedFormatString(speclist,vlist):
         specrange = spec[0]
         smin = specrange[0]
         smax = specrange[1]
+        #check for optional boolean indicating whether numerical values should be left-filled with zeros
+        zerolead = False
+        if len(spec) >= 3:
+            zerolead = True
+        
         specwidth = (smax-smin)+1
         spaces = ' '*(smin-offset)
         formatstr += spaces
@@ -107,7 +113,10 @@ def getFixedFormatString(speclist,vlist):
             else:
                 raise FixedFormatError,'String types do not support NaN values.'
         else:
-            fmt = '%' + numstr + ftrans[strstr]
+            if zerolead:
+                fmt = '%0' + numstr + ftrans[strstr]
+            else:
+                fmt = '%' + numstr + ftrans[strstr]
         formatlist.append(fmt)
         formatstr += fmt
         offset = smax+1
@@ -144,7 +153,7 @@ if __name__ == '__main__':
     vlist = ['fred',float('nan'),5]
     speclist = [((1,4),'a4'),
                 ((6,10),'f5.3'),
-                ((12,14),'i3')]
+                ((12,14),'i3',True)]
     vstr = getFixedFormatString(speclist,vlist)
     print vstr
     vlistout = readFixedFormatString(speclist,vstr)

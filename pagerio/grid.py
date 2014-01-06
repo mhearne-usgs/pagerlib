@@ -271,10 +271,10 @@ class Grid:
         if self.geodict['xmax'] < ulx and lon < ulx:
             lon += 360
 
-        col = np.round(((lon - ulx)/xdim))
-        row = np.round(((uly - lat)/ydim))
-        if row < 0 or row > nrows-1 or col < 0 or col > ncols-1:
-            msg = 'Lat/Lon (%.6f,%.6f) is outside Grid boundaries: %s' % (lat,lon,str(self.getRange()))
+        col = np.round(((lon - ulx)/xdim)).astype(int)
+        row = np.round(((uly - lat)/ydim)).astype(int)
+        if (row < 0).any() or (row > nrows-1).any() or (col < 0).any() or (col > ncols-1).any():
+            msg = 'One of more of your lat/lon values is outside Grid boundaries: %s' % (str(self.getRange()))
             raise GridError, msg
         if len(dims) == 3:
             return self.griddata[row,col,0]
